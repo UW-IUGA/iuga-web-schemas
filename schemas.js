@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 /* Events Schema:
     image fields such as ePics are handled by Multer.
 */
-export const eventsSchema = new mongoose.Schema({
+const eventsSchema = new mongoose.Schema({
     eName: { type: String, required: true },
     eOrganizers: { type: String, required: true },
     eStartDate: { type: Date, required: true },
@@ -29,7 +29,7 @@ export const eventsSchema = new mongoose.Schema({
 /* Feedback Schema:
     Participant information for a given event.
 */
-export const participantsSchema = new mongoose.Schema({
+const participantsSchema = new mongoose.Schema({
     pUID: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
     eID: { type: mongoose.Schema.Types.ObjectId, ref: 'Events', required: true },  //
     rsvpAnswers: [{
@@ -43,7 +43,7 @@ export const participantsSchema = new mongoose.Schema({
 /* Feedback Schema:
     Saving information submitted via the feedback form.
 */
-export const feedbackSchema = new mongoose.Schema({
+const feedbackSchema = new mongoose.Schema({
     fUID: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
     fType: { type: String, default: "General" },
     fTopic: { type: String, required: true },
@@ -55,7 +55,7 @@ export const feedbackSchema = new mongoose.Schema({
     Basic information when a user signs up
     Default user account type is Member, unless otherwise noted.
 */
-export const usersSchema = new mongoose.Schema({
+const usersSchema = new mongoose.Schema({
     uId: Number,
     // uPic: {
     //     data: Buffer,
@@ -74,7 +74,7 @@ export const usersSchema = new mongoose.Schema({
 /* Officers Schema:
     ofUID refers to the officer's user id.
 */
-export const officersSchema = new mongoose.Schema({
+const officersSchema = new mongoose.Schema({
     offTitle: { type: String, required: true },
     offDescription: { type: String, required: true },
     offTermYear: Number,
@@ -92,7 +92,7 @@ export const officersSchema = new mongoose.Schema({
 /* Committees Schema:
     The cmeMembers field will be an array of userID along with their chosen committee pic.
 */
-export const committeesSchema = new mongoose.Schema({
+const committeesSchema = new mongoose.Schema({
     cmeName: { type: String, required: true },
     cmeDescription: { type: String, required: true },
     cmeYear: { type: Number, required: true },
@@ -108,10 +108,20 @@ export const committeesSchema = new mongoose.Schema({
 /* Organization Schema:
     For storing both org logo and name.
 */
-export const organizationSchema = new mongoose.Schema({
+const organizationSchema = new mongoose.Schema({
     orgName: { type: String, required: true },
     orgPic: {
         data: Buffer,
         contentType: String
     }
 })
+
+export {
+    eventsSchema,
+    participantsSchema,
+    feedbackSchema,
+    usersSchema,
+    officersSchema,
+    committeesSchema,
+    organizationSchema
+};
