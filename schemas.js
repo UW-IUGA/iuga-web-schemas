@@ -48,7 +48,12 @@ const feedbackSchema = new mongoose.Schema({
     fType: { type: String, default: "General" },
     fTopic: { type: String, required: true },
     fDescription: { type: String, required: true },
-    fRating: Number
+    fRating: Number,
+    fStatus: { type: String, enum: ["pending", "approved", "denied"], default: "pending" },
+    fApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    fDiscountCode: { type: String, default: null },
+    fApprovedAt: { type: Date, default: null },
+    fDeniedAt: { type: Date, default: null }
 })
 
 /* Users Schema:
@@ -65,6 +70,7 @@ const usersSchema = new mongoose.Schema({
     uLastName: String,
     uDisplayName: String,
     uEmail: String,
+    uNetId: { type: String, sparse: true, unique: true },
     // uBio: String,
     // uMajor: {type:String, default: ""},
     uType: { type: String, default: "Member" },
