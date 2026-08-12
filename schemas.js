@@ -106,6 +106,99 @@ const roleAssignmentsSchema = new mongoose.Schema({
 roleAssignmentsSchema.index({ userId: 1, isActive: 1 })
 roleAssignmentsSchema.index({ roleId: 1, isActive: 1 })
 
+/* Event Requests Schema:
+    Tracks an event from officer submission through publication and operations.
+*/
+const eventRequestsSchema = new mongoose.Schema({
+    requesterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    organizerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    eventName: { type: String, required: true, trim: true, maxlength: 120 },
+    requestingGroup: { type: String, required: true, trim: true, maxlength: 120 },
+    description: { type: String, required: true, trim: true, maxlength: 2000 },
+    proposedStartDate: { type: Date, required: true },
+    proposedEndDate: Date,
+    audience: { type: String, trim: true, maxlength: 500 },
+    rsvpEnabled: { type: Boolean, default: true },
+    rsvpQuestions: [{ qId: String, qString: String }],
+    status: {
+        type: String,
+        enum: ['draft', 'submitted', 'changes_requested', 'approved', 'denied', 'completed', 'cancelled'],
+        default: 'submitted'
+    },
+    submittedAt: { type: Date, default: Date.now },
+    submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    changesRequestedAt: Date,
+    changesRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    changesRequestedReason: { type: String, trim: true, maxlength: 2000 },
+    approvedAt: Date,
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    deniedAt: Date,
+    deniedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    denialReason: { type: String, trim: true, maxlength: 2000 },
+    completedAt: Date,
+    completedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    publishedEventId: { type: mongoose.Schema.Types.ObjectId, ref: 'Events', default: null },
+    checkpoints: [{
+        key: {
+            type: String,
+            enum: ['proposal', 'meeting', 'finance', 'room', 'marketing', 'purchases', 'completion', 'review'],
+            required: true
+        },
+        status: { type: String, enum: ['pending', 'in_progress', 'completed'], default: 'pending' },
+        notes: { type: String, trim: true, maxlength: 2000 },
+        link: { type: String, trim: true, maxlength: 1000 },
+        completedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+        completedAt: { type: Date, default: null },
+        updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+        updatedAt: { type: Date, default: null }
+    }],
+    finance: {
+        allocatedCents: { type: Number, min: 0, default: null },
+        actualSpendCents: { type: Number, min: 0, default: null },
+        notes: { type: String, trim: true, maxlength: 2000 },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+        approvedAt: { type: Date, default: null }
+    },
+    booking: {
+        location: { type: String, trim: true, maxlength: 500 },
+        startDate: Date,
+        endDate: Date,
+        notes: { type: String, trim: true, maxlength: 2000 },
+        bookedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+        bookedAt: { type: Date, default: null }
+    },
+    slideTemplate: {
+        name: { type: String, trim: true, maxlength: 120 },
+        url: { type: String, trim: true, maxlength: 1000 },
+        version: { type: String, trim: true, maxlength: 80 }
+    },
+    reviewLink: { type: String, trim: true, maxlength: 1000 },
+    reviewReceivedAt: Date,
+    reviewReceivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null }
+}, { timestamps: true })
+
+eventRequestsSchema.index({ status: 1, proposedStartDate: 1 })
+eventRequestsSchema.index({ requesterId: 1, createdAt: -1 })
+
+/* Event Reviews Schema:
+    Stores the required organizer and distinct-member post-event reviews.
+*/
+const eventReviewsSchema = new mongoose.Schema({
+    eventRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'EventRequests', required: true },
+    reviewerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    reviewerRole: { type: String, enum: ['organizer', 'member'], required: true },
+    attendeeCount: { type: Number, min: 0 },
+    whatWentWell: { type: String, trim: true, maxlength: 2000 },
+    whatMissedExpectations: { type: String, trim: true, maxlength: 2000 },
+    totalSpentCents: { type: Number, min: 0 },
+    locationReview: { type: String, trim: true, maxlength: 2000 },
+    timingReview: { type: String, trim: true, maxlength: 2000 },
+    extenuatingCircumstances: { type: String, trim: true, maxlength: 2000 }
+}, { timestamps: true })
+
+eventReviewsSchema.index({ eventRequestId: 1, reviewerRole: 1 }, { unique: true })
+eventReviewsSchema.index({ eventRequestId: 1, reviewerId: 1 }, { unique: true })
+
 /* Officers Schema:
     ofUID refers to the officer's user id.
 */
@@ -158,6 +251,8 @@ export {
     usersSchema,
     rolesSchema,
     roleAssignmentsSchema,
+    eventRequestsSchema,
+    eventReviewsSchema,
     officersSchema,
     committeesSchema,
     organizationSchema
