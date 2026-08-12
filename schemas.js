@@ -72,6 +72,38 @@ const usersSchema = new mongoose.Schema({
     uPrivate: { type: Boolean, default: false }
 })
 
+/* Roles Schema:
+    Defines a reusable officer role and the backend permissions it grants.
+    roleKey is the stable internal identifier; roleName is shown to users.
+*/
+const rolesSchema = new mongoose.Schema({
+    roleName: { type: String, required: true, trim: true },
+    roleKey: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    roleDescription: { type: String, default: "" },
+    permissions: { type: [String], default: [] },
+    isActive: { type: Boolean, default: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null }
+}, { timestamps: true })
+
+/* Role Assignments Schema:
+    Connects users to roles, committees, and reporting relationships.
+    assignedBy identifies the authenticated user who made the assignment.
+*/
+const roleAssignmentsSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    roleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Roles', required: true },
+    committeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Committees', default: null },
+    reportsToUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    assignedAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, default: null },
+    isActive: { type: Boolean, default: true }
+}, { timestamps: true })
+
+roleAssignmentsSchema.index({ userId: 1, isActive: 1 })
+roleAssignmentsSchema.index({ roleId: 1, isActive: 1 })
+
 /* Officers Schema:
     ofUID refers to the officer's user id.
 */
@@ -122,6 +154,8 @@ export {
     participantsSchema,
     feedbackSchema,
     usersSchema,
+    rolesSchema,
+    roleAssignmentsSchema,
     officersSchema,
     committeesSchema,
     organizationSchema
