@@ -97,6 +97,8 @@ const roleAssignmentsSchema = new mongoose.Schema({
     reportsToUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
     assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
     assignedAt: { type: Date, default: Date.now },
+    deactivatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    deactivatedAt: { type: Date, default: null },
     expiresAt: { type: Date, default: null },
     isActive: { type: Boolean, default: true }
 }, { timestamps: true })
