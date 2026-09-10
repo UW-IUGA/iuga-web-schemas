@@ -64,8 +64,18 @@ const usersSchema = new mongoose.Schema({
     uFirstName: String,
     uLastName: String,
     uDisplayName: String,
-    uEmail: String,
-    uNetId: { type: String, sparse: true, unique: true },
+    entraObjectId: {
+        type: String,
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true,
+        validate: {
+            validator: value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value),
+            message: 'entraObjectId must be a canonical GUID'
+        }
+    },
+    uEmail: { type: String, required: true, unique: true, lowercase: true, trim: true },
     // uBio: String,
     // uMajor: {type:String, default: ""},
     uType: { type: String, default: "Member" },
