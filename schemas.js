@@ -1,6 +1,15 @@
 import mongoose from 'mongoose';
 
 
+/* Event Host Schema:
+    Snapshot of the person hosting an event, copied from the event request through
+    approval. name fits any host; userId links an IUGA member when one exists.
+*/
+const eventHostSchema = new mongoose.Schema({
+    name: { type: String, trim: true, maxlength: 120, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null }
+}, { _id: false })
+
 /* Events Schema:
     image fields such as ePics are handled by Multer.
 */
@@ -18,12 +27,13 @@ const eventsSchema = new mongoose.Schema({
     eThumbnailPath: String,
     eLabels: [String],
     eParticipants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Participants' }],
-    eShowParticipants: { type: Boolean, default: true },
+    eShowParticipants: { type: Boolean, default: false },
     eRsvpEnabled: { type: Boolean, default: true },
     rsvpQuestions: [{
         qId: { type: String, required: true },
         qString: { type: String, required: true }
-    }]
+    }],
+    eHost: { type: eventHostSchema, default: null }
 })
 
 /* Feedback Schema:
@@ -174,7 +184,9 @@ const eventRequestsSchema = new mongoose.Schema({
     },
     reviewLink: { type: String, trim: true, maxlength: 1000 },
     reviewReceivedAt: Date,
-    reviewReceivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null }
+    reviewReceivedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    eHost: { type: eventHostSchema, default: null },
+    eShowParticipants: { type: Boolean, default: false }
 }, { timestamps: true })
 
 eventRequestsSchema.index({ status: 1, proposedStartDate: 1 })
