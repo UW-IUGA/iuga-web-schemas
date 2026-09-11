@@ -244,6 +244,287 @@ const organizationSchema = new mongoose.Schema({
     }
 })
 
+const safeIntegerValidator = {
+    validator: (val) => val === undefined || val === null || (Number.isSafeInteger(val) && val >= 0),
+    message: "{VALUE} must be a non-negative safe integer"
+};
+
+/* Shop Catalog Entry Schema */
+const catalogEntrySchema = new mongoose.Schema({
+    skuKey: { type: String, required: true },
+    catalogVersion: { type: String, required: true },
+    dropKey: { type: String, required: true },
+    productKey: { type: String, required: true },
+    title: { type: String, required: true },
+    variant: {
+        size: { type: String, default: null },
+        color: { type: String, default: null },
+        style: { type: String, default: null }
+    },
+    imageKey: { type: String, default: null },
+    fulfillmentSku: { type: String, required: true },
+    currency: { type: String, default: "usd" },
+    unitAmountMinor: { type: Number, required: true, validate: safeIntegerValidator },
+    priceId: { type: String, default: null },
+    taxCode: { type: String, default: null },
+    inventoryPolicy: { type: String, enum: ["finite", "preorder"], default: "finite" },
+    availableFrom: { type: Date, default: null },
+    availableUntil: { type: Date, default: null },
+    maxPerOrder: { type: Number, default: 5 },
+    isEnabled: { type: Boolean, default: true },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+catalogEntrySchema.index({ skuKey: 1, dropKey: 1, catalogVersion: 1 }, { unique: true });
+
+/* Shop Drop Schema */
+const shopDropSchema = new mongoose.Schema({
+    dropKey: { type: String, required: true, unique: true },
+    opensAt: { type: Date, required: true },
+    closesAt: { type: Date, required: true },
+    isEnabled: { type: Boolean, default: true },
+    catalogVersion: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+/* Inventory Counter Schema */
+const inventoryCounterSchema = new mongoose.Schema({
+    fulfillmentSku: { type: String, required: true, unique: true },
+    available: { type: Number, required: true, min: 0 },
+    reserved: { type: Number, required: true, min: 0, default: 0 },
+    consumed: { type: Number, required: true, min: 0, default: 0 },
+    version: { type: Number, required: true, default: 0 },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+/* Inventory Reservation Schema */
+const inventoryReservationSchema = new mongoose.Schema({
+    orderId: { type: String, required: true },
+    skuKey: { type: String, required: true },
+    fulfillmentSku: { type: String, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    state: { type: String, enum: ["reserved", "consumed", "released"], default: "reserved" },
+    expiresAt: { type: Date, required: true },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+inventoryReservationSchema.index({ orderId: 1, skuKey: 1 }, { unique: true });
+inventoryReservationSchema.index({ skuKey: 1, state: 1, expiresAt: 1 });
+
+/* Checkout Attempt Schema */
+const checkoutAttemptSchema = new mongoose.Schema({
+    owner: {
+        type: { type: String, default: "user" },
+        userId: { type: String, required: true }
+    },
+    attemptKey: { type: String, required: true },
+    providerIdempotencyKey: { type: String, required: true },
+    cartFingerprint: { type: String, required: true },
+    items: [{
+        skuKey: { type: String, required: true },
+        quantity: { type: Number, required: true, min: 1 }
+    }],
+    catalogVersion: { type: String, required: true },
+    dropKey: { type: String, required: true },
+    quoteSnapshot: { type: mongoose.Schema.Types.Mixed, required: true },
+    frozenStripeRequest: { type: mongoose.Schema.Types.Mixed, default: null },
+    expiresAt: { type: Date, required: true },
+    firstSubmissionAt: { type: Date, default: null },
+    status: {
+        type: String,
+        enum: ["pending", "dispatching", "ready", "reconciliation_required", "expired", "failed"],
+        default: "pending"
+    },
+    orderId: { type: String, required: true },
+    sessionId: { type: String, default: null },
+    paymentIntentId: { type: String, default: null },
+    providerMode: { type: String, default: null },
+    providerAccountId: { type: String, default: null },
+    providerApiVersion: { type: String, default: null },
+    reconciliationReason: { type: String, default: null },
+    lastErrorCode: { type: String, default: null },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+checkoutAttemptSchema.index({ "owner.type": 1, "owner.userId": 1, attemptKey: 1 }, { unique: true });
+checkoutAttemptSchema.index(
+    { providerMode: 1, providerAccountId: 1, sessionId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            providerMode: { $type: "string" },
+            providerAccountId: { $type: "string" },
+            sessionId: { $type: "string" }
+        }
+    }
+);
+checkoutAttemptSchema.index(
+    { providerMode: 1, providerAccountId: 1, paymentIntentId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            providerMode: { $type: "string" },
+            providerAccountId: { $type: "string" },
+            paymentIntentId: { $type: "string" }
+        }
+    }
+);
+
+/* Order Schema */
+const orderSchema = new mongoose.Schema({
+    owner: {
+        type: { type: String, default: "user" },
+        userId: { type: String, required: true }
+    },
+    orderReference: { type: String, required: true, unique: true },
+    items: [{
+        skuKey: { type: String, required: true },
+        title: { type: String, required: true },
+        variant: { type: String, default: null },
+        quantity: { type: Number, required: true, min: 1 },
+        unitAmountMinor: { type: Number, required: true, validate: safeIntegerValidator },
+        subtotalMinor: { type: Number, required: true, validate: safeIntegerValidator }
+    }],
+    currency: { type: String, default: "usd" },
+    totalMinor: { type: Number, required: true, validate: safeIntegerValidator },
+    quoteSnapshot: { type: mongoose.Schema.Types.Mixed, required: true },
+    settlementSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+    receiptEmail: { type: String, default: null },
+    fulfillmentMethod: { type: String, enum: ["pickup", "shipping"], default: "pickup" },
+    paymentState: { type: String, enum: ["pending", "paid"], default: "pending" },
+    fulfillmentState: {
+        type: String,
+        enum: ["pending", "preparing", "ready_for_pickup", "picked_up", "shipped", "delivered", "on_hold", "cancelled"],
+        default: "pending"
+    },
+    fulfillmentHold: {
+        reason: { type: String, default: null },
+        placedAt: { type: Date, default: null }
+    },
+    refundState: { type: String, enum: ["none", "partial", "full"], default: "none" },
+    pendingRefundMinor: { type: Number, default: 0, validate: safeIntegerValidator },
+    refundedMinor: { type: Number, default: 0, validate: safeIntegerValidator },
+    dispute: {
+        state: { type: String, enum: ["none", "open", "won", "lost", "closed"], default: "none" },
+        reason: { type: String, default: null },
+        evidenceDueBy: { type: Date, default: null }
+    },
+    paidAt: { type: Date, default: null },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+orderSchema.index({ "owner.type": 1, "owner.userId": 1, createdAt: -1, _id: -1 });
+
+/* Refund Operation Schema */
+const refundOperationSchema = new mongoose.Schema({
+    orderId: { type: String, required: true },
+    commandId: { type: String, required: true, unique: true },
+    providerIdempotencyKey: { type: String, required: true },
+    firstSubmissionAt: { type: Date, default: null },
+    providerRefundId: { type: String, default: null },
+    providerAccountId: { type: String, default: null },
+    providerMode: { type: String, default: null },
+    amountMinor: { type: Number, required: true, validate: safeIntegerValidator },
+    currency: { type: String, default: "usd" },
+    commandState: {
+        type: String,
+        enum: ["created", "submitting", "reconciliation_required", "resolved"],
+        default: "created"
+    },
+    providerStatus: {
+        type: String,
+        enum: ["pending", "requires_action", "succeeded", "failed", "canceled", null],
+        default: null
+    },
+    reason: { type: String, default: null },
+    requestedBy: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+refundOperationSchema.index(
+    { providerAccountId: 1, providerMode: 1, providerRefundId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            providerAccountId: { $type: "string" },
+            providerMode: { $type: "string" },
+            providerRefundId: { $type: "string" }
+        }
+    }
+);
+
+/* Dispute Schema */
+const disputeSchema = new mongoose.Schema({
+    orderId: { type: String, required: true },
+    providerDisputeId: { type: String, required: true },
+    providerAccountId: { type: String, default: null },
+    providerMode: { type: String, default: null },
+    amountMinor: { type: Number, required: true, validate: safeIntegerValidator },
+    currency: { type: String, default: "usd" },
+    status: {
+        type: String,
+        enum: [
+            "warning_needs_response",
+            "warning_under_review",
+            "warning_closed",
+            "needs_response",
+            "under_review",
+            "charge_refunded",
+            "won",
+            "lost"
+        ],
+        required: true
+    },
+    reason: { type: String, default: null },
+    evidenceDueBy: { type: Date, default: null },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+disputeSchema.index(
+    { providerAccountId: 1, providerMode: 1, providerDisputeId: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            providerAccountId: { $type: "string" },
+            providerMode: { $type: "string" },
+            providerDisputeId: { $type: "string" }
+        }
+    }
+);
+
+/* Stripe Inbox Event Schema */
+const stripeInboxEventSchema = new mongoose.Schema({
+    accountId: { type: String, required: true },
+    livemode: { type: Boolean, required: true },
+    eventId: { type: String, required: true },
+    eventType: { type: String, required: true },
+    apiVersion: { type: String, required: true },
+    receivedAt: { type: Date, default: Date.now },
+    processedAt: { type: Date, default: null },
+    status: {
+        type: String,
+        enum: ["received", "processing", "processed", "failed"],
+        default: "received"
+    }
+});
+stripeInboxEventSchema.index({ accountId: 1, livemode: 1, eventId: 1 }, { unique: true });
+
+/* Order Activity Schema */
+const orderActivitySchema = new mongoose.Schema({
+    orderId: { type: String, required: true },
+    actor: {
+        type: { type: String, required: true },
+        userId: { type: String, default: null }
+    },
+    action: { type: String, required: true },
+    beforeFacts: { type: mongoose.Schema.Types.Mixed, default: null },
+    afterFacts: { type: mongoose.Schema.Types.Mixed, default: null },
+    reason: { type: String, default: null },
+    correlationId: { type: String, default: null },
+    occurredAt: { type: Date, default: Date.now }
+});
+
 export {
     eventsSchema,
     participantsSchema,
@@ -255,5 +536,16 @@ export {
     eventReviewsSchema,
     officersSchema,
     committeesSchema,
-    organizationSchema
+    organizationSchema,
+    catalogEntrySchema,
+    shopDropSchema,
+    inventoryCounterSchema,
+    inventoryReservationSchema,
+    checkoutAttemptSchema,
+    orderSchema,
+    refundOperationSchema,
+    disputeSchema,
+    stripeInboxEventSchema,
+    orderActivitySchema
 };
+
