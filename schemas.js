@@ -400,8 +400,12 @@ const orderSchema = new mongoose.Schema({
     },
     fulfillmentHold: {
         reason: { type: String, default: null },
-        placedAt: { type: Date, default: null }
+        placedAt: { type: Date, default: null },
+        // The fulfilment state the order was in when the hold was placed, so lifting the hold can
+        // put the order back where it was.
+        returnToState: { type: String, default: null }
     },
+    trackingNumber: { type: String, default: null },
     refundState: { type: String, enum: ["none", "partial", "full"], default: "none" },
     pendingRefundMinor: { type: Number, default: 0, validate: safeIntegerValidator },
     refundedMinor: { type: Number, default: 0, validate: safeIntegerValidator },
