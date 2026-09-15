@@ -264,7 +264,7 @@ const catalogEntrySchema = new mongoose.Schema({
     imageKey: { type: String, default: null },
     fulfillmentSku: { type: String, required: true },
     currency: { type: String, default: "usd" },
-    unitAmountMinor: { type: Number, required: true, validate: safeIntegerValidator },
+    unitAmountCents: { type: Number, required: true, validate: safeIntegerValidator },
     priceId: { type: String, default: null },
     taxCode: { type: String, default: null },
     inventoryPolicy: { type: String, enum: ["finite", "preorder"], default: "finite" },
@@ -383,11 +383,11 @@ const orderSchema = new mongoose.Schema({
         title: { type: String, required: true },
         variant: { type: String, default: null },
         quantity: { type: Number, required: true, min: 1 },
-        unitAmountMinor: { type: Number, required: true, validate: safeIntegerValidator },
-        subtotalMinor: { type: Number, required: true, validate: safeIntegerValidator }
+        unitAmountCents: { type: Number, required: true, validate: safeIntegerValidator },
+        subtotalCents: { type: Number, required: true, validate: safeIntegerValidator }
     }],
     currency: { type: String, default: "usd" },
-    totalMinor: { type: Number, required: true, validate: safeIntegerValidator },
+    totalCents: { type: Number, required: true, validate: safeIntegerValidator },
     quoteSnapshot: { type: mongoose.Schema.Types.Mixed, required: true },
     settlementSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
     receiptEmail: { type: String, default: null },
@@ -407,8 +407,8 @@ const orderSchema = new mongoose.Schema({
     },
     trackingNumber: { type: String, default: null },
     refundState: { type: String, enum: ["none", "partial", "full"], default: "none" },
-    pendingRefundMinor: { type: Number, default: 0, validate: safeIntegerValidator },
-    refundedMinor: { type: Number, default: 0, validate: safeIntegerValidator },
+    pendingRefundCents: { type: Number, default: 0, validate: safeIntegerValidator },
+    refundedCents: { type: Number, default: 0, validate: safeIntegerValidator },
     dispute: {
         state: { type: String, enum: ["none", "open", "won", "lost", "closed"], default: "none" },
         reason: { type: String, default: null },
@@ -429,7 +429,7 @@ const refundOperationSchema = new mongoose.Schema({
     providerRefundId: { type: String, default: null },
     providerAccountId: { type: String, default: null },
     providerMode: { type: String, default: null },
-    amountMinor: { type: Number, required: true, validate: safeIntegerValidator },
+    amountCents: { type: Number, required: true, validate: safeIntegerValidator },
     currency: { type: String, default: "usd" },
     commandState: {
         type: String,
@@ -464,7 +464,7 @@ const disputeSchema = new mongoose.Schema({
     providerDisputeId: { type: String, required: true },
     providerAccountId: { type: String, default: null },
     providerMode: { type: String, default: null },
-    amountMinor: { type: Number, required: true, validate: safeIntegerValidator },
+    amountCents: { type: Number, required: true, validate: safeIntegerValidator },
     currency: { type: String, default: "usd" },
     status: {
         type: String,
