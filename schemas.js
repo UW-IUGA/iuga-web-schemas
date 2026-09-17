@@ -320,7 +320,7 @@ const checkoutAttemptSchema = new mongoose.Schema({
     },
     attemptKey: { type: String, required: true },
     providerIdempotencyKey: { type: String, required: true },
-    cartFingerprint: { type: String, required: true },
+    attemptCart: { type: String, required: true },
     items: [{
         skuKey: { type: String, required: true },
         quantity: { type: Number, required: true, min: 1 }
