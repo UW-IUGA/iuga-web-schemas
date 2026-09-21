@@ -415,6 +415,12 @@ const orderSchema = new mongoose.Schema({
         evidenceDueBy: { type: Date, default: null }
     },
     paidAt: { type: Date, default: null },
+    version: { type: Number, required: true, default: 0 },
+    claim: {
+        claimedBy: { type: String, default: null },
+        claimExpiresAt: { type: Date, default: null },
+        claimNumber: { type: Number, required: true, default: 0 }
+    },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
@@ -497,8 +503,8 @@ disputeSchema.index(
     }
 );
 
-/* Stripe Inbox Event Schema */
-const stripeInboxEventSchema = new mongoose.Schema({
+/* Received Stripe Event Schema */
+const receivedStripeEventSchema = new mongoose.Schema({
     accountId: { type: String, required: true },
     livemode: { type: Boolean, required: true },
     eventId: { type: String, required: true },
@@ -508,11 +514,19 @@ const stripeInboxEventSchema = new mongoose.Schema({
     processedAt: { type: Date, default: null },
     status: {
         type: String,
-        enum: ["received", "processing", "processed", "failed"],
+        enum: ["received", "processing", "processed", "stopped"],
         default: "received"
-    }
+    },
+    attempts: { type: Number, required: true, default: 0 },
+    retryAfter: { type: Date, default: Date.now },
+    claimedBy: { type: String, default: null },
+    claimExpiresAt: { type: Date, default: null },
+    claimNumber: { type: Number, required: true, default: 0 },
+    lastErrorCode: { type: String, default: null },
+    stoppedAt: { type: Date, default: null }
 });
-stripeInboxEventSchema.index({ accountId: 1, livemode: 1, eventId: 1 }, { unique: true });
+receivedStripeEventSchema.index({ accountId: 1, livemode: 1, eventId: 1 }, { unique: true });
+receivedStripeEventSchema.index({ status: 1, retryAfter: 1 });
 
 /* Order Activity Schema */
 const orderActivitySchema = new mongoose.Schema({
@@ -528,6 +542,79 @@ const orderActivitySchema = new mongoose.Schema({
     correlationId: { type: String, default: null },
     occurredAt: { type: Date, default: Date.now }
 });
+
+/* Pending Work Schema */
+const pendingWorkSchema = new mongoose.Schema({
+    dedupeKey: { type: String, required: true, unique: true },
+    orderId: { type: String, required: true },
+    kind: {
+        type: String,
+        enum: ["receipt_email", "fulfillment_notice", "operator_alert"],
+        required: true
+    },
+    payload: { type: mongoose.Schema.Types.Mixed, default: null },
+    status: {
+        type: String,
+        enum: ["pending", "delivering", "delivered", "stopped"],
+        default: "pending"
+    },
+    attempts: { type: Number, required: true, default: 0 },
+    retryAfter: { type: Date, default: Date.now },
+    claimedBy: { type: String, default: null },
+    claimExpiresAt: { type: Date, default: null },
+    claimNumber: { type: Number, required: true, default: 0 },
+    deliveredAt: { type: Date, default: null },
+    lastErrorCode: { type: String, default: null },
+    stoppedAt: { type: Date, default: null },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+pendingWorkSchema.index({ status: 1, retryAfter: 1 });
+
+/* Stripe Payment Evidence Schema */
+const stripePaymentEvidenceSchema = new mongoose.Schema({
+    source: {
+        type: String,
+        enum: ["signed_webhook", "authenticated_server_retrieval"],
+        required: true
+    },
+    observedAt: { type: Date, required: true },
+    recordedAt: { type: Date, default: Date.now },
+    accountId: { type: String, required: true },
+    livemode: { type: Boolean, required: true },
+    apiVersion: { type: String, default: null },
+    eventId: { type: String, default: null },
+    eventType: { type: String, default: null },
+    objectType: { type: String, required: true },
+    objectId: { type: String, required: true },
+    orderId: { type: String, default: null },
+    attemptId: { type: String, default: null },
+    sessionId: { type: String, default: null },
+    paymentIntentId: { type: String, default: null },
+    amountCents: { type: Number, default: null, validate: safeIntegerValidator },
+    currency: { type: String, default: "usd" },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: null },
+    matchState: {
+        type: String,
+        enum: ["matched", "unmatched", "held"],
+        default: "held"
+    }
+});
+stripePaymentEvidenceSchema.index({ accountId: 1, livemode: 1, objectType: 1, objectId: 1 });
+stripePaymentEvidenceSchema.index({ orderId: 1, observedAt: -1 });
+
+/* Stripe Scan Progress Schema */
+const stripeScanProgressSchema = new mongoose.Schema({
+    accountId: { type: String, required: true },
+    livemode: { type: Boolean, required: true },
+    lastEventCreatedAt: { type: Date, default: null },
+    lastEventId: { type: String, default: null },
+    claimedBy: { type: String, default: null },
+    claimExpiresAt: { type: Date, default: null },
+    claimNumber: { type: Number, required: true, default: 0 },
+    updatedAt: { type: Date, default: Date.now }
+});
+stripeScanProgressSchema.index({ accountId: 1, livemode: 1 }, { unique: true });
 
 export {
     eventsSchema,
@@ -549,7 +636,10 @@ export {
     orderSchema,
     refundOperationSchema,
     disputeSchema,
-    stripeInboxEventSchema,
-    orderActivitySchema
+    receivedStripeEventSchema,
+    orderActivitySchema,
+    pendingWorkSchema,
+    stripePaymentEvidenceSchema,
+    stripeScanProgressSchema
 };
 
