@@ -79,7 +79,8 @@ const usersSchema = new mongoose.Schema({
     // uBio: String,
     // uMajor: {type:String, default: ""},
     uType: { type: String, default: "Member" },
-    uPrivate: { type: Boolean, default: false }
+    uPrivate: { type: Boolean, default: false },
+    uVenmoUsername: { type: String, trim: true, default: null }
 })
 
 /* Roles Schema:
@@ -256,6 +257,85 @@ const organizationSchema = new mongoose.Schema({
     }
 })
 
+/* Shop Hold Line Schema:
+    One product in one size with a quantity, copied from the catalog when the hold is created.
+*/
+const shopHoldLineSchema = new mongoose.Schema({
+    sku: { type: String, required: true },
+    name: { type: String, required: true },
+    size: { type: String, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    unitPriceCents: { type: Number, required: true, min: 0 }
+}, { _id: false })
+
+/* Shop Holds Schema:
+    A timed, all-or-none reservation of a student's cart lines. Lines count toward
+    capacity and the per-student limit while the hold is active.
+    status: active | confirmed | cancelled | expired.
+*/
+const shopHoldsSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    catalogVersion: { type: String, required: true },
+    lines: { type: [shopHoldLineSchema], default: [] },
+    status: { type: String, enum: ['active', 'confirmed', 'cancelled', 'expired'], default: 'active', required: true },
+    expiresAt: { type: Date, required: true },
+    purchaseId: { type: mongoose.Schema.Types.ObjectId, ref: 'ShopPurchases', default: null }
+}, { timestamps: true })
+
+shopHoldsSchema.index({ userId: 1, status: 1 })
+shopHoldsSchema.index({ status: 1, expiresAt: 1 })
+
+/* Shop Purchases Schema:
+    An accepted manual Venmo purchase, created when a hold is confirmed. lines and totalCents
+    are an immutable snapshot taken at confirmation (ADR-0007).
+    status: pending | paid | not_paid | refunded.
+*/
+const shopPurchasesSchema = new mongoose.Schema({
+    holdId: { type: mongoose.Schema.Types.ObjectId, ref: 'ShopHolds', required: true, unique: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    catalogVersion: { type: String, required: true },
+    venmoUsername: { type: String, required: true, trim: true },
+    lines: { type: [shopHoldLineSchema], required: true },
+    totalCents: { type: Number, required: true, min: 0 },
+    status: { type: String, enum: ['pending', 'paid', 'not_paid', 'refunded'], default: 'pending', required: true },
+    confirmedAt: { type: Date, required: true }
+}, { timestamps: true })
+
+shopPurchasesSchema.index({ userId: 1 })
+shopPurchasesSchema.index({ status: 1, confirmedAt: 1 })
+
+/* Shop Capacity Schema:
+    Units of one product reserved or purchased for one drop. Changed only with conditional
+    updates inside a transaction, so reservedUnits cannot pass the drop cap.
+*/
+const shopCapacitySchema = new mongoose.Schema({
+    catalogVersion: { type: String, required: true },
+    sku: { type: String, required: true },
+    reservedUnits: { type: Number, required: true, default: 0, min: 0 }
+}, { timestamps: true })
+
+shopCapacitySchema.index({ catalogVersion: 1, sku: 1 }, { unique: true })
+
+/* Shop Student Units Schema:
+    Units of one product a student holds or has purchased across the shop catalog. Not keyed by
+    drop, because the per-student limit applies across all drops. Changed with conditional updates.
+*/
+const shopStudentUnitsSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    sku: { type: String, required: true },
+    units: { type: Number, required: true, default: 0, min: 0 }
+}, { timestamps: true })
+
+shopStudentUnitsSchema.index({ userId: 1, sku: 1 }, { unique: true })
+
+/* Shop Product Limits Schema:
+    Per-student limit for one product. A missing document means the default limit of 1.
+*/
+const shopProductLimitsSchema = new mongoose.Schema({
+    sku: { type: String, required: true, unique: true },
+    perStudentLimit: { type: Number, required: true, default: 1, min: 1 }
+}, { timestamps: true })
+
 export {
     eventsSchema,
     participantsSchema,
@@ -267,5 +347,10 @@ export {
     eventReviewsSchema,
     officersSchema,
     committeesSchema,
-    organizationSchema
+    organizationSchema,
+    shopHoldsSchema,
+    shopPurchasesSchema,
+    shopCapacitySchema,
+    shopStudentUnitsSchema,
+    shopProductLimitsSchema
 };
