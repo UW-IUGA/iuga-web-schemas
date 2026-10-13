@@ -80,7 +80,9 @@ const usersSchema = new mongoose.Schema({
     // uMajor: {type:String, default: ""},
     uType: { type: String, default: "Member" },
     uPrivate: { type: Boolean, default: false },
-    uVenmoUsername: { type: String, trim: true, default: null }
+    // Left out of query results (and populated user records) unless a query selects them with "+field".
+    uVenmoUsername: { type: String, trim: true, default: null, select: false },
+    uPhoneNumber: { type: String, trim: true, default: null, select: false }
 })
 
 /* Roles Schema:
@@ -328,12 +330,31 @@ const shopStudentUnitsSchema = new mongoose.Schema({
 
 shopStudentUnitsSchema.index({ userId: 1, sku: 1 }, { unique: true })
 
+/* One shared write per student's checkout makes concurrent hold creation retry,
+   even when their carts contain different products. _id is the student's user id.
+*/
+const shopStudentCheckoutsSchema = new mongoose.Schema({
+    _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    revision: { type: Number, required: true, default: 0 }
+})
+
 /* Shop Product Limits Schema:
-    Per-student limit for one product. A missing document means the default limit of 1.
+    Per-student limit for one product, keyed by SKU and shared across all drops. A product without a
+    document uses the default in shop limit defaults (ShopLimitDefault). Every write must set
+    perStudentLimit explicitly.
 */
 const shopProductLimitsSchema = new mongoose.Schema({
     sku: { type: String, required: true, unique: true },
-    perStudentLimit: { type: Number, required: true, default: 1, min: 1 }
+    perStudentLimit: { type: Number, required: true, min: 1 }
+}, { timestamps: true })
+
+/* Shop Limit Default Schema:
+    The per-student limit for every product that has no shopProductLimits document. One document, key
+    "default". A missing document means the code default (DEFAULT_PER_STUDENT_LIMIT in backend shopHolds.js).
+*/
+const shopLimitDefaultSchema = new mongoose.Schema({
+    key: { type: String, required: true, unique: true, default: "default" },
+    perStudentLimit: { type: Number, required: true, min: 1 }
 }, { timestamps: true })
 
 export {
@@ -352,5 +373,7 @@ export {
     shopPurchasesSchema,
     shopCapacitySchema,
     shopStudentUnitsSchema,
-    shopProductLimitsSchema
+    shopStudentCheckoutsSchema,
+    shopProductLimitsSchema,
+    shopLimitDefaultSchema
 };
