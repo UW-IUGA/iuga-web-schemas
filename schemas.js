@@ -360,6 +360,16 @@ const shopLimitDefaultSchema = new mongoose.Schema({
     perStudentLimit: { type: Number, required: true, min: 1 }
 }, { timestamps: true })
 
+/* Shop Settings Schema:
+    Switches an officer can change in the database without a deploy. One document, key "shop".
+    newCheckoutsPaused: true stops new holds from starting; holds that already exist can still be
+    confirmed. A missing document means checkout is not paused.
+*/
+const shopSettingsSchema = new mongoose.Schema({
+    key: { type: String, required: true, unique: true, default: "shop" },
+    newCheckoutsPaused: { type: Boolean, required: true, default: false }
+}, { timestamps: true })
+
 export {
     eventsSchema,
     participantsSchema,
@@ -378,5 +388,6 @@ export {
     shopStudentUnitsSchema,
     shopStudentCheckoutsSchema,
     shopProductLimitsSchema,
-    shopLimitDefaultSchema
+    shopLimitDefaultSchema,
+    shopSettingsSchema
 };
