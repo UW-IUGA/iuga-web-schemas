@@ -277,6 +277,7 @@ const shopHoldLineSchema = new mongoose.Schema({
 */
 const shopHoldsSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    catalogId: { type: String, required: true },
     catalogVersion: { type: String, required: true },
     lines: { type: [shopHoldLineSchema], default: [] },
     status: { type: String, enum: ['active', 'confirmed', 'cancelled', 'expired'], default: 'active', required: true },
@@ -295,6 +296,7 @@ shopHoldsSchema.index({ status: 1, expiresAt: 1 })
 const shopPurchasesSchema = new mongoose.Schema({
     holdId: { type: mongoose.Schema.Types.ObjectId, ref: 'ShopHolds', required: true, unique: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    catalogId: { type: String, required: true },
     catalogVersion: { type: String, required: true },
     venmoUsername: { type: String, required: true, trim: true },
     lines: { type: [shopHoldLineSchema], required: true },
@@ -307,16 +309,17 @@ shopPurchasesSchema.index({ userId: 1 })
 shopPurchasesSchema.index({ status: 1, confirmedAt: 1 })
 
 /* Shop Capacity Schema:
-    Units of one product reserved or purchased for one drop. Changed only with conditional
-    updates inside a transaction, so reservedUnits cannot pass the drop cap.
+    Units of one product reserved or purchased for one drop. Keyed by the drop (catalogId), not
+    the catalog version, so the count carries over when the catalog is edited during a drop.
+    Changed only with conditional updates inside a transaction, so reservedUnits cannot pass the drop cap.
 */
 const shopCapacitySchema = new mongoose.Schema({
-    catalogVersion: { type: String, required: true },
+    catalogId: { type: String, required: true },
     sku: { type: String, required: true },
     reservedUnits: { type: Number, required: true, default: 0, min: 0 }
 }, { timestamps: true })
 
-shopCapacitySchema.index({ catalogVersion: 1, sku: 1 }, { unique: true })
+shopCapacitySchema.index({ catalogId: 1, sku: 1 }, { unique: true })
 
 /* Shop Student Units Schema:
     Units of one product a student holds or has purchased across the shop catalog. Not keyed by
