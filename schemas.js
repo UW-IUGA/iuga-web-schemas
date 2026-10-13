@@ -363,11 +363,14 @@ const shopLimitDefaultSchema = new mongoose.Schema({
 /* Shop Settings Schema:
     Switches an officer can change in the database without a deploy. One document, key "shop".
     newCheckoutsPaused: true stops new holds from starting; holds that already exist can still be
-    confirmed. A missing document means checkout is not paused.
+    confirmed. maintenanceAt: an announced maintenance time. Until then checkout works and holds end
+    no later than that time; from then on new holds stop, as if paused. null means none is planned.
+    A missing document means checkout is not paused and no maintenance is planned.
 */
 const shopSettingsSchema = new mongoose.Schema({
     key: { type: String, required: true, unique: true, default: "shop" },
-    newCheckoutsPaused: { type: Boolean, required: true, default: false }
+    newCheckoutsPaused: { type: Boolean, required: true, default: false },
+    maintenanceAt: { type: Date, default: null }
 }, { timestamps: true })
 
 export {
