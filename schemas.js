@@ -289,7 +289,7 @@ shopHoldsSchema.index({ status: 1, expiresAt: 1 })
 
 /* Shop Purchases Schema:
     An accepted manual Venmo purchase, created when a hold is confirmed. lines and totalCents
-    are an immutable snapshot taken at confirmation (ADR-0007).
+    are an immutable snapshot taken at confirmation.
     status: pending | paid | not_paid | refunded.
 */
 const shopPurchasesSchema = new mongoose.Schema({
