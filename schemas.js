@@ -300,7 +300,7 @@ shopHoldsSchema.index({ status: 1, expiresAt: 1 })
     afterPickup is true on a payment entry that moved a picked-up order away from Paid.
 */
 const shopPurchaseReviewEntrySchema = new mongoose.Schema({
-    actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
     at: { type: Date, required: true },
     kind: { type: String, enum: ['payment', 'follow_up', 'amount_received', 'pickup', 'note'], required: true },
     from: { type: String, required: function () { return this.kind !== 'note' } },
