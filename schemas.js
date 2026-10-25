@@ -78,6 +78,7 @@ const usersSchema = new mongoose.Schema({
     uNetId: { type: String, sparse: true, unique: true },
     // uBio: String,
     // uMajor: {type:String, default: ""},
+    // A label only; it grants no access. Officer permissions come from role assignments.
     uType: { type: String, default: "Member" },
     uPrivate: { type: Boolean, default: false },
     // Left out of query results (and populated user records) unless a query selects them with "+field".
@@ -288,10 +289,41 @@ const shopHoldsSchema = new mongoose.Schema({
 shopHoldsSchema.index({ userId: 1, status: 1 })
 shopHoldsSchema.index({ status: 1, expiresAt: 1 })
 
+/* Shop Purchase Review Entry Schema:
+    One officer change to a purchase: a payment status change (from/to are statuses), a
+    follow-up entry (from/to are a follow-up status or "none"; entries saved before follow-up
+    statuses existed use "awaiting" for contacted), or an amount received change (from/to are
+    whole cents as text, or "none" before any amount was recorded), a pickup entry (from/to are
+    not_picked_up or picked_up), or a note: an officer's own
+    log entry with a title (its topic) and no from/to. note is the officer's optional reason on a
+    payment entry, or optional description on a follow-up or note entry, seen only by order reviewers.
+    afterPickup is true on a payment entry that moved a picked-up order away from Paid.
+*/
+const shopPurchaseReviewEntrySchema = new mongoose.Schema({
+    actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true },
+    at: { type: Date, required: true },
+    kind: { type: String, enum: ['payment', 'follow_up', 'amount_received', 'pickup', 'note'], required: true },
+    from: { type: String, required: function () { return this.kind !== 'note' } },
+    to: { type: String, required: function () { return this.kind !== 'note' } },
+    title: { type: String, maxlength: 80 },
+    note: { type: String, maxlength: 500 },
+    afterPickup: { type: Boolean }
+}, { _id: false })
+
 /* Shop Purchases Schema:
     An accepted manual Venmo purchase, created when a hold is confirmed. lines and totalCents
     are an immutable snapshot taken at confirmation.
     status: pending | paid | not_paid | refunded.
+    Review fields are changed only by officer review. reviewRevision increases with every review
+    change so a stale decision is refused. Purchases saved before review existed lack these fields
+    and read as revision 0, not awaiting a reply, and no history.
+    amountReceivedCents: what the officer saw arrive in Venmo, or null before anything was recorded.
+    followUpStatus: where follow-up with the student stands (contacted, will_pay: the student promised
+    to pay, says_paid: the student says they already paid), or null with none open.
+    awaitingStudentReply is true exactly while a follow-up is open; orders saved before
+    followUpStatus existed have only awaitingStudentReply, which reads as contacted.
+    pickedUpAt and pickedUpBy: when and by which officer a paid order was handed over at pickup,
+    or null while it has not been (or the mark was cleared). Purchases saved before pickup existed read as null.
 */
 const shopPurchasesSchema = new mongoose.Schema({
     holdId: { type: mongoose.Schema.Types.ObjectId, ref: 'ShopHolds', required: true, unique: true },
@@ -302,11 +334,23 @@ const shopPurchasesSchema = new mongoose.Schema({
     lines: { type: [shopHoldLineSchema], required: true },
     totalCents: { type: Number, required: true, min: 0 },
     status: { type: String, enum: ['pending', 'paid', 'not_paid', 'refunded'], default: 'pending', required: true },
-    confirmedAt: { type: Date, required: true }
+    confirmedAt: { type: Date, required: true },
+    reviewRevision: { type: Number, default: 0, min: 0 },
+    amountReceivedCents: { type: Number, default: null, min: 0 },
+    awaitingStudentReply: { type: Boolean, default: false },
+    followUpStatus: { type: String, enum: ['contacted', 'will_pay', 'says_paid', null], default: null },
+    followUpUpdatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    followUpUpdatedAt: { type: Date, default: null },
+    pickedUpAt: { type: Date, default: null },
+    pickedUpBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null },
+    reviewHistory: { type: [shopPurchaseReviewEntrySchema], default: [] }
 }, { timestamps: true })
 
 shopPurchasesSchema.index({ userId: 1 })
 shopPurchasesSchema.index({ status: 1, confirmedAt: 1 })
+// Officer review lists oldest first, with _id breaking ties, within one status or across all.
+shopPurchasesSchema.index({ status: 1, confirmedAt: 1, _id: 1 })
+shopPurchasesSchema.index({ confirmedAt: 1, _id: 1 })
 
 /* Shop Capacity Schema:
     Units of one product reserved or purchased for one drop. Keyed by the drop (catalogId), not
